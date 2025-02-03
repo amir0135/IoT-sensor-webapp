@@ -6,7 +6,8 @@ import json
 from azure.iot.device import IoTHubDeviceClient, Message
 import datetime
 
-# Replace with your actual connection string
+
+# Replace with actual connection string
 CONNECTION_STRING = "HostName=claryo-mvp-iothub.azure-devices.net;DeviceId=claryo-sensor-sim;SharedAccessKey=BbgGShAbLsOVfZVbpTSKN/ceZYXJRopIecTJ5q3l48o="
 
 # Configure for testing: send a fixed number of messages
