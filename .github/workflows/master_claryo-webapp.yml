@@ -4,15 +4,15 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master]
-  workflow_dispatch:   # This enables the "Run workflow" button
+    branches: [ master ]
+  workflow_dispatch:   # Enables manual triggering via the "Run workflow" button
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout your repository so that the workflow can access all files.
+      # 1. Checkout your repository so that the workflow has access to all files.
       - name: Checkout Code
         uses: actions/checkout@v2
 
@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.9'
 
-      # 3. Install backend dependencies from your requirements.txt file.
+      # 3. Install backend dependencies from your requirements.txt file in claryo-backend/.
       - name: Install Dependencies
         working-directory: claryo-backend
         run: |
@@ -63,7 +63,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: Azure/webapps-deploy@v2
         with:
-          app-name: claryo-webapp    # Replace with your actual App Service name
+          app-name: claryo-webapp    # Replace with your actual Azure App Service name if different
           slot-name: production
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_ce89ae6788754f18869ceb9269219386 }}
           images: clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
