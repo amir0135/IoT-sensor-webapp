@@ -2,9 +2,9 @@ name: Build and deploy container app to Azure Web App - claryo-webapp
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master]
   workflow_dispatch:   # This enables the "Run workflow" button
 
 jobs:
