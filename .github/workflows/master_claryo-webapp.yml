@@ -12,40 +12,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout your repository so that the workflow has access to all files.
+      # 1. Checkout your repository.
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      # 2. Set up the Python environment (Python 3.9) so you can run tests and install dependencies.
+      # 2. Set up the Python environment (Python 3.9).
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
           python-version: '3.9'
 
-      # 3. Install backend dependencies from your requirements.txt file in claryo-backend/.
+      # 3. Install backend dependencies from claryo-backend/requirements.txt.
       - name: Install Dependencies
         working-directory: claryo-backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. Run backend tests (if you have any) using pytest.
+      # 4. Run backend tests (if any) using pytest.
+      # If you have no tests yet, the "|| true" ensures this step does not fail the workflow.
       - name: Run Backend Tests
         run: |
           pytest --maxfail=1 --disable-warnings || true
 
       # 5. Run the sensor simulation test script.
-      # The script is located in the claryo-backend/tests/ folder.
+      # The script is located at claryo-backend/tests/sensor_sim.py.
       - name: Run Sensor Simulation Test
         run: |
           python claryo-backend/tests/sensor_sim.py
 
-      # 6. Build the Docker image for your backend using the Dockerfile in claryo-backend/.
+      # 6. Build the Docker image using the Dockerfile in claryo-backend/ with claryo-backend as build context.
       - name: Build Docker Image
         run: |
-          docker build -f claryo-backend/Dockerfile -t claryo-backend:${{ github.sha }} .
+          docker build -f claryo-backend/Dockerfile -t claryo-backend:${{ github.sha }} claryo-backend
 
-      # 7. Log in to Azure Container Registry using the Docker login action (v3).
+      # 7. Log in to Azure Container Registry (ACR) using the Docker login action (v3).
       - name: Log in to Azure Container Registry
         uses: docker/login-action@v3
         with:
@@ -53,7 +54,7 @@ jobs:
           username: ${{ secrets.AzureAppService_ContainerUsername_11c01914615a4776ba056411c443f45f }}
           password: ${{ secrets.AzureAppService_ContainerPassword_c93f8e964c1f426d824390cc794a2e13 }}
 
-      # 8. Tag and push the Docker image to your Azure Container Registry.
+      # 8. Tag and push the Docker image to your ACR.
       - name: Push Docker Image to ACR
         run: |
           docker tag claryo-backend:${{ github.sha }} clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
