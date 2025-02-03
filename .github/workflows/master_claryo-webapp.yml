@@ -1,51 +1,70 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy container app to Azure Web App - claryo-webapp
 
 on:
   push:
-    branches:
-      - master
-  workflow_dispatch:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build:
-    runs-on: 'ubuntu-latest'
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    - name: Log in to registry
-      uses: docker/login-action@v2
-      with:
-        registry: https://clarypocacr.azurecr.io/
-        username: ${{ secrets.AzureAppService_ContainerUsername_11c01914615a4776ba056411c443f45f }}
-        password: ${{ secrets.AzureAppService_ContainerPassword_c93f8e964c1f426d824390cc794a2e13 }}
-
-    - name: Build and push container image to registry
-      uses: docker/build-push-action@v3
-      with:
-        push: true
-        tags: clarypocacr.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_11c01914615a4776ba056411c443f45f }}/claryo-backend:${{ github.sha }}
-        file: ./Dockerfile
-
-  deploy:
+  build-and-test:
     runs-on: ubuntu-latest
-    needs: build
-    environment:
-      name: 'production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
     steps:
-    - name: Deploy to Azure Web App
-      id: deploy-to-webapp
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: 'claryo-webapp'
-        slot-name: 'production'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_ce89ae6788754f18869ceb9269219386 }}
-        images: 'clarypocacr.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_11c01914615a4776ba056411c443f45f }}/claryo-backend:${{ github.sha }}'
+      # 1. Checkout your repository so that the workflow can access all files.
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      # 2. Set up the Python environment. This installs Python 3.9 so you can run tests and install dependencies.
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+
+      # 3. Install dependencies from your requirements.txt file.
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4. Run backend tests (if you have any). This step runs your tests with pytest.
+      - name: Run Backend Tests
+        run: |
+          pytest --maxfail=1 --disable-warnings
+
+      # 5. Run the sensor simulation test script. This is useful for generating test data.
+      - name: Run Sensor Simulation Test
+        run: |
+          python tests/sensor_sim.py
+
+      # 6. Build the Docker image for your backend. 
+      # If your Dockerfile is in the repository root, the command is fine. 
+      # If your Dockerfile is in the claryo-backend folder, update the `file:` parameter accordingly.
+      - name: Build Docker Image
+        run: |
+          docker build -t claryo-backend:${{ github.sha }} .
+
+      # 7. Log in to Azure Container Registry using the Docker login action (v3).
+      # Make sure your registry URL does not include a protocol prefix.
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: clarypocacr.azurecr.io
+          username: ${{ secrets.AzureAppService_ContainerUsername_11c01914615a4776ba056411c443f45f }}
+          password: ${{ secrets.AzureAppService_ContainerPassword_c93f8e964c1f426d824390cc794a2e13 }}
+
+      # 8. Tag and push the Docker image to ACR.
+      - name: Push Docker Image to ACR
+        run: |
+          docker tag claryo-backend:${{ github.sha }} clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
+          docker push clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
+
+      # 9. Deploy to Azure Web App using the Azure Webapps Deploy action.
+      # This action takes your publish profile (set as a secret) and deploys the container image.
+      - name: Deploy to Azure Web App
+        uses: Azure/webapps-deploy@v2
+        with:
+          app-name: claryo-webapp    # Replace with your actual App Service name
+          slot-name: production
+          publish-profile: ${{ secrets.AzureAppService_PublishProfile_ce89ae6788754f18869ceb9269219386 }}
+          images: clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
