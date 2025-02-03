@@ -27,25 +27,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. Run backend tests (if you have any). This step runs your tests with pytest.
+      # 4. Run backend tests (if you have any). If your tests are located in claryo-backend/tests/, you can specify that path.
       - name: Run Backend Tests
         run: |
-          pytest --maxfail=1 --disable-warnings
+          pytest claryo-backend/tests --maxfail=1 --disable-warnings
 
-      # 5. Run the sensor simulation test script. This is useful for generating test data.
+      # 5. Run the sensor simulation test script from the claryo-backend/tests/ folder.
       - name: Run Sensor Simulation Test
         run: |
-          python tests/sensor_sim.py
+          python claryo-backend/tests/sensor_sim.py
 
-      # 6. Build the Docker image for your backend. 
-      # If your Dockerfile is in the repository root, the command is fine. 
-      # If your Dockerfile is in the claryo-backend folder, update the `file:` parameter accordingly.
+      # 6. Build the Docker image for your backend using the Dockerfile in claryo-backend/.
       - name: Build Docker Image
         run: |
-           docker build -f claryo-backend/Dockerfile -t claryo-backend:${{ github.sha }}
+           docker build -f claryo-backend/Dockerfile -t claryo-backend:${{ github.sha }} .
 
       # 7. Log in to Azure Container Registry using the Docker login action (v3).
-      # Make sure your registry URL does not include a protocol prefix.
       - name: Log in to Azure Container Registry
         uses: docker/login-action@v3
         with:
@@ -58,10 +55,8 @@ jobs:
         run: |
           docker tag claryo-backend:${{ github.sha }} clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
           docker push clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
-          
 
-      # 9. Deploy to Azure Web App using the Azure Webapps Deploy action.
-      # This action takes your publish profile (set as a secret) and deploys the container image.
+      # 9. Deploy to Azure Web App using the Azure/webapps-deploy action.
       - name: Deploy to Azure Web App
         uses: Azure/webapps-deploy@v2
         with:
