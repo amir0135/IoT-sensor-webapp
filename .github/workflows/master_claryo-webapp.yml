@@ -42,7 +42,7 @@ jobs:
       # If your Dockerfile is in the claryo-backend folder, update the `file:` parameter accordingly.
       - name: Build Docker Image
         run: |
-          docker build -t claryo-backend:${{ github.sha }} .
+           docker build -f claryo-backend/Dockerfile -t claryo-backend:${{ github.sha }}
 
       # 7. Log in to Azure Container Registry using the Docker login action (v3).
       # Make sure your registry URL does not include a protocol prefix.
@@ -58,6 +58,7 @@ jobs:
         run: |
           docker tag claryo-backend:${{ github.sha }} clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
           docker push clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
+          
 
       # 9. Deploy to Azure Web App using the Azure Webapps Deploy action.
       # This action takes your publish profile (set as a secret) and deploys the container image.
