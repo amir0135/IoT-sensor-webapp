@@ -41,7 +41,7 @@ jobs:
         run: |
           python tests/sensor_sim.py
 
-      # 6. Build the Docker image using the Dockerfile in claryo-backend/.
+      # 6. Build the Docker image using the Dockerfile in claryo-backend/ with claryo-backend as build context.
       - name: Build Docker Image
         working-directory: claryo-backend
         run: |
@@ -49,13 +49,13 @@ jobs:
 
       # 7. Run a security scan on the Docker image using Trivy.
       - name: Scan Docker Image for Vulnerabilities
-        uses: aquasecurity/trivy-action@v0.2.0
+        uses: aquasecurity/trivy-action@v0.10.0
         with:
           image: claryo-backend:${{ github.sha }}
           severity: CRITICAL,HIGH
           format: table
 
-      # 8. Log in to Azure Container Registry (ACR).
+      # 8. Log in to Azure Container Registry (ACR) using the Docker login action.
       - name: Log in to Azure Container Registry
         uses: docker/login-action@v3
         with:
@@ -83,5 +83,5 @@ jobs:
         run: |
           echo "Waiting 30 seconds for deployment to stabilize..."
           sleep 30
-          # Replace <your-app-url> with the actual URL of your Azure Web App.
-          curl -f https://<your-app-url>/ || { echo "Health check failed"; exit 1; }
+          # Replace the URL below with your actual app URL.
+          curl -f https://claryo-webapp-b5bvckdyfbhddpcm.canadacentral-01.azurewebsites.net/ || { echo "Health check failed"; exit 1; }
