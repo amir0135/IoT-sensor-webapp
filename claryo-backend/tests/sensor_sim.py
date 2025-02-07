@@ -16,7 +16,7 @@ DELAY_SECONDS = 5   # Delay between messages in seconds
 
 def generate_telemetry():
     return {
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "sensorId": "sensor-001",
         "pressure": round(random.uniform(5.0, 10.0), 2),
         "flowRate": round(random.uniform(0.0, 50.0), 2),

@@ -1,4 +1,4 @@
-name: Build and deploy container app to Azure Web App - claryo-webapp
+name: Build, Test, Scan, and Deploy Container App to Azure Web App - claryo-webapp
 
 on:
   push:
@@ -29,24 +29,33 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. Run backend tests (if any) using pytest.
-      # If you have no tests yet, the "|| true" ensures this step does not fail the workflow.
+      # 4. Run backend tests using pytest.
       - name: Run Backend Tests
+        working-directory: claryo-backend
         run: |
-          pytest --maxfail=1 --disable-warnings || true
+          pytest --maxfail=1 --disable-warnings
 
       # 5. Run the sensor simulation test script.
-      # The script is located at claryo-backend/tests/sensor_sim.py.
       - name: Run Sensor Simulation Test
+        working-directory: claryo-backend
         run: |
-          python claryo-backend/tests/sensor_sim.py
+          python tests/sensor_sim.py
 
-      # 6. Build the Docker image using the Dockerfile in claryo-backend/ with claryo-backend as build context.
+      # 6. Build the Docker image using the Dockerfile in claryo-backend/.
       - name: Build Docker Image
+        working-directory: claryo-backend
         run: |
-          docker build -f claryo-backend/Dockerfile -t claryo-backend:${{ github.sha }} claryo-backend
+          docker build -f Dockerfile -t claryo-backend:${{ github.sha }} .
 
-      # 7. Log in to Azure Container Registry (ACR) using the Docker login action (v3).
+      # 7. Run a security scan on the Docker image using Trivy.
+      - name: Scan Docker Image for Vulnerabilities
+        uses: aquasecurity/trivy-action@v0.2.0
+        with:
+          image: claryo-backend:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          format: table
+
+      # 8. Log in to Azure Container Registry (ACR).
       - name: Log in to Azure Container Registry
         uses: docker/login-action@v3
         with:
@@ -54,17 +63,25 @@ jobs:
           username: ${{ secrets.AzureAppService_ContainerUsername_11c01914615a4776ba056411c443f45f }}
           password: ${{ secrets.AzureAppService_ContainerPassword_c93f8e964c1f426d824390cc794a2e13 }}
 
-      # 8. Tag and push the Docker image to your ACR.
+      # 9. Tag and push the Docker image to your ACR.
       - name: Push Docker Image to ACR
         run: |
           docker tag claryo-backend:${{ github.sha }} clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
           docker push clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
 
-      # 9. Deploy the container image to Azure Web App using the Azure/webapps-deploy action.
+      # 10. Deploy the container image to Azure Web App using the Azure/webapps-deploy action.
       - name: Deploy to Azure Web App
         uses: Azure/webapps-deploy@v2
         with:
-          app-name: claryo-webapp    # Replace with your actual Azure App Service name if different
+          app-name: claryo-webapp
           slot-name: production
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_ce89ae6788754f18869ceb9269219386 }}
           images: clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
+
+      # 11. Post-deployment: Wait for deployment stabilization and run a simple health check.
+      - name: Post-Deployment Health Check
+        run: |
+          echo "Waiting 30 seconds for deployment to stabilize..."
+          sleep 30
+          # Replace <your-app-url> with the actual URL of your Azure Web App.
+          curl -f https://<your-app-url>/ || { echo "Health check failed"; exit 1; }

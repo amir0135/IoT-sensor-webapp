@@ -1,9 +1,7 @@
 // src/components/ChartCard.js
 import React from 'react';
 import styled from 'styled-components';
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
-} from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 
 const CardContainer = styled.div`
   background-color: #fff;
@@ -37,14 +35,7 @@ const MetricTable = styled.table`
   }
 `;
 
-export default function ChartCard({
-  title,
-  dataKey,
-  data,
-  lines, // array of { dataKey: string, stroke: string, label: string }
-  unitLabel,
-  metrics = [],
-}) {
+export default function ChartCard({ title, dataKey, data, lines, unitLabel, metrics = [] }) {
   return (
     <CardContainer>
       <ChartWrapper>
