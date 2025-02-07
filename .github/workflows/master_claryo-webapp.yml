@@ -51,7 +51,7 @@ jobs:
       - name: Scan Docker Image for Vulnerabilities
         uses: aquasecurity/trivy-action@master
         with:
-          image: claryo-backend:${{ github.sha }}
+          image-ref: claryo-backend:${{ github.sha }}
           severity: CRITICAL,HIGH
           format: table
 
@@ -73,7 +73,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: Azure/webapps-deploy@v2
         with:
-          app-name: claryo-webapp    # Replace with your actual Azure App Service name if different
+          app-name: claryo-webapp
           slot-name: production
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_ce89ae6788754f18869ceb9269219386 }}
           images: clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
@@ -83,5 +83,4 @@ jobs:
         run: |
           echo "Waiting 30 seconds for deployment to stabilize..."
           sleep 30
-          # Replace the URL below with your actual app URL.
           curl -f https://claryo-webapp-b5bvckdyfbhddpcm.canadacentral-01.azurewebsites.net/ || { echo "Health check failed"; exit 1; }
