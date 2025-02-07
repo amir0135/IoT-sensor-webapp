@@ -49,7 +49,7 @@ jobs:
 
       # 7. Run a security scan on the Docker image using Trivy.
       - name: Scan Docker Image for Vulnerabilities
-        uses: aquasecurity/trivy-action@v0.10.0
+        uses: aquasecurity/trivy-action@master
         with:
           image: claryo-backend:${{ github.sha }}
           severity: CRITICAL,HIGH
@@ -73,7 +73,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: Azure/webapps-deploy@v2
         with:
-          app-name: claryo-webapp
+          app-name: claryo-webapp    # Replace with your actual Azure App Service name if different
           slot-name: production
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_ce89ae6788754f18869ceb9269219386 }}
           images: clarypocacr.azurecr.io/claryo-backend:${{ github.sha }}
