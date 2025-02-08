@@ -18,7 +18,10 @@ app = FastAPI(title="Claryo API", version="0.1.0")
 # Configure CORS so that requests from the React dev server (localhost:3000) are allowed
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://polite-field-0d95aea03.4.azurestaticapps.net"],
+    allow_origins=[
+        "https://polite-field-0d95aea03.4.azurestaticapps.net",
+        "http://localhost:3000"  # if you test locally
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
