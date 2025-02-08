@@ -1,5 +1,5 @@
 // src/components/AlertsPanel.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 
@@ -23,8 +23,8 @@ export default function AlertsPanel({ threshold = 12.0, pollingInterval = 10000 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Function to fetch alerts from the API.
-  const fetchAlerts = async () => {
+  // Wrap fetchAlerts with useCallback so it doesn't change on every render.
+  const fetchAlerts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -42,14 +42,13 @@ export default function AlertsPanel({ threshold = 12.0, pollingInterval = 10000 
     } finally {
       setLoading(false);
     }
-  };
+  }, [threshold]);
 
-  // Poll the alerts endpoint at the specified interval.
   useEffect(() => {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, pollingInterval);
     return () => clearInterval(interval);
-  }, [threshold, pollingInterval]);
+  }, [fetchAlerts, pollingInterval]);
 
   return (
     <div>

@@ -1,5 +1,5 @@
 // src/pages/PressureDashboard.js
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
 import ChartCard from '../components/ChartCard';
@@ -26,13 +26,12 @@ export default function PressureDashboard() {
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Function to fetch pressure data
-  const fetchPressureData = () => {
+  // Wrap fetchPressureData with useCallback.
+  const fetchPressureData = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${process.env.REACT_APP_API_URL}/sensors/pressure_summary`, {
-        params: { dateRange, branch },
-      })
+    axios.get(`${process.env.REACT_APP_API_URL}/sensors/pressure_summary`, {
+      params: { dateRange, branch }
+    })
       .then((res) => {
         setChartData(res.data.chartData || []);
         setMetrics(res.data.metrics || []);
@@ -41,16 +40,15 @@ export default function PressureDashboard() {
         console.error("Error fetching pressure data:", err)
       )
       .finally(() => setLoading(false));
-  };
+  }, [dateRange, branch]);
 
-  // Poll for new data every 10 seconds
   useEffect(() => {
     fetchPressureData();
     const interval = setInterval(fetchPressureData, 10000);
     return () => clearInterval(interval);
-  }, [dateRange, branch]);
+  }, [fetchPressureData]);
 
-  // Configure a single line for pressure using the average value from the backend
+  // Use 'avgPressure' as the data key if your backend returns that alias.
   const lines = [
     { dataKey: 'avgPressure', stroke: 'blue', label: 'Avg Pressure (bar)' }
   ];

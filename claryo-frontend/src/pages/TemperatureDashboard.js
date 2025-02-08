@@ -1,5 +1,5 @@
 // src/pages/TemperatureDashboard.js
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import axios from 'axios';
 import ChartCard from '../components/ChartCard';
@@ -26,13 +26,12 @@ export default function TemperatureDashboard() {
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Function to fetch temperature data
-  const fetchTemperatureData = () => {
+  // Wrap fetchTemperatureData with useCallback.
+  const fetchTemperatureData = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${process.env.REACT_APP_API_URL}/sensors/temperature_summary`, {
-        params: { dateRange, branch },
-      })
+    axios.get(`${process.env.REACT_APP_API_URL}/sensors/temperature_summary`, {
+      params: { dateRange, branch }
+    })
       .then((res) => {
         setChartData(res.data.chartData || []);
         setMetrics(res.data.metrics || []);
@@ -41,17 +40,15 @@ export default function TemperatureDashboard() {
         console.error("Error fetching temperature data:", err)
       )
       .finally(() => setLoading(false));
-  };
+  }, [dateRange, branch]);
 
-  // Poll for new data every 10 seconds
   useEffect(() => {
     fetchTemperatureData();
     const interval = setInterval(fetchTemperatureData, 10000);
     return () => clearInterval(interval);
-  }, [dateRange, branch]);
+  }, [fetchTemperatureData]);
 
-  // Configure the chart to use the average temperature value returned by the backend.
-  // If your backend query uses a different alias (for example, "avgTemp"), update the dataKey here.
+  // Use 'avgTemp' as the key for temperature values if your backend returns that alias.
   const lines = [
     { dataKey: 'avgTemp', stroke: 'red', label: 'Avg Temperature (°C)' }
   ];
