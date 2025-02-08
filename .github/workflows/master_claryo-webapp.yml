@@ -83,4 +83,4 @@ jobs:
         run: |
           echo "Waiting 30 seconds for deployment to stabilize..."
           sleep 30
-          curl -f https://claryo-webapp-b5bvckdyfbhddpcm.canadacentral-01.azurewebsites.net/ || { echo "Health check failed"; exit 1; }
+          curl -f https://claryo-webapp-b5bvckdyfbhddpcm.canadacentral-01.azurewebsites.net/ || { echo "Health check failed"; exit 1; } 
