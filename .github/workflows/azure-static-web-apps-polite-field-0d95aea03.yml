@@ -30,7 +30,7 @@ jobs:
           yarn install
           yarn build
 
-      # 3.1. Debug step: List contents of the build folder to ensure it has your files.
+      # 3.1. Debug: List contents of the build folder.
       - name: List Build Folder Contents
         working-directory: claryo-frontend/build
         run: ls -la
@@ -43,5 +43,6 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}  # For PR comments and GitHub integrations
           action: "upload"
           app_location: "claryo-frontend"   # Folder with your frontend source code.
-          output_location: "build"          # Folder within app_location that has your production build.
-          api_location: ""                  # No API folder—set explicitly to an empty string.
+          output_location: "build"          # Folder inside app_location containing your production build.
+          api_location: ""                  # Explicitly indicate no API folder.
+          skip_api_build: true              # Skip the API build step to avoid validation of a non-existent API folder.
