@@ -31,7 +31,7 @@ export default function FlowDashboard() {
     async function fetchFlowData() {
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:8000/sensors/flow_summary", {
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/sensors/flow_summary`, {
           params: { dateRange, branch },
         });
         setChartData(res.data.chartData || []);

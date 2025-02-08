@@ -8,27 +8,28 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from azure.kusto.data import KustoConnectionStringBuilder, KustoClient
 from dotenv import load_dotenv
+from config import Config
 
-# Load environment variables from the .env file
-load_dotenv()
+
+
 
 app = FastAPI(title="Claryo API", version="0.1.0")
 
 # Configure CORS so that requests from the React dev server (localhost:3000) are allowed
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # or ["*"] to allow all
+    allow_origins=["https://claryo-frontend.azurestaticwebapps.net"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ADX connection settings loaded from environment variables
-KUSTO_CLUSTER = os.getenv("KUSTO_CLUSTER")  # e.g., https://claryo-mvp-adx-cluster.northeurope.kusto.windows.net
-KUSTO_DB = os.getenv("KUSTO_DB", "claryoMVPDB")
-APP_ID = os.getenv("APP_ID")              # Your AAD App ID
-APP_SECRET = os.getenv("APP_SECRET")      # Your AAD App Secret
-TENANT_ID = os.getenv("TENANT_ID")        # Your Tenant ID
+KUSTO_CLUSTER = Config.KUSTO_CLUSTER
+KUSTO_DB = Config.KUSTO_DB
+APP_ID = Config.APP_ID
+APP_SECRET = Config.APP_SECRET
+TENANT_ID = Config.TENANT_ID
 
 # Create the Kusto connection string builder and ADX client
 kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(

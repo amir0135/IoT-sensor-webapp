@@ -28,7 +28,7 @@ export default function AlertsPanel({ threshold = 12.0, pollingInterval = 10000 
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get("http://localhost:8000/sensors/check_alerts", {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/sensors/check_alerts`, {
         params: { threshold }
       });
       if (response.status === 200) {

@@ -16,7 +16,7 @@ export default function CombinedSummary() {
   const fetchLatestData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:8000/sensors/latest");
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/sensors/latest`);
       setLatestSensors(res.data || []);
     } catch (error) {
       console.error("Error fetching latest sensor data:", error);

@@ -30,7 +30,7 @@ export default function PressureDashboard() {
   const fetchPressureData = () => {
     setLoading(true);
     axios
-      .get("http://localhost:8000/sensors/pressure_summary", {
+      .get(`${process.env.REACT_APP_API_URL}/sensors/pressure_summary`, {
         params: { dateRange, branch },
       })
       .then((res) => {

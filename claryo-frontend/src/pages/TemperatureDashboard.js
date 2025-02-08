@@ -30,7 +30,7 @@ export default function TemperatureDashboard() {
   const fetchTemperatureData = () => {
     setLoading(true);
     axios
-      .get("http://localhost:8000/sensors/temperature_summary", {
+      .get(`${process.env.REACT_APP_API_URL}/sensors/temperature_summary`, {
         params: { dateRange, branch },
       })
       .then((res) => {
