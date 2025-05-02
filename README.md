@@ -1,4 +1,4 @@
-# IoT Dashboard
+# Claryo Dashboard
 
 Claryo Dashboard is a real-time monitoring application for sensor data (e.g., pressure, flow rate, and temperature) sourced from an Azure Data Explorer (ADX) database. The platform consists of a FastAPI backend that queries sensor data from ADX and a React frontend that displays various dashboards, alerts, and summaries with dynamic charts and metrics.
 
