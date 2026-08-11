@@ -1,0 +1,20 @@
+// Azure Data Explorer setup for the Claryo IoT dashboard.
+//
+// The Bicep deployment (infra/) creates the table automatically. Use this file
+// when setting up a cluster by hand, or to seed sample data so the dashboard
+// shows something immediately.
+//
+// Run these in the ADX query pane against your database (default: IoTDatabase).
+
+// 1) Create the table the API queries (idempotent).
+.create-merge table IoTSensorData (timestamp: datetime, sensorId: string, temperature: real, pressure: real, flowRate: real)
+
+// 2) (Optional) Seed a few sample rows.
+.ingest inline into table IoTSensorData <|
+2026-08-11T09:00:00Z,sensor-01,21.4,7.9,12.1
+2026-08-11T10:00:00Z,sensor-01,22.1,8.3,11.7
+2026-08-11T11:00:00Z,sensor-01,23.0,8.1,12.4
+2026-08-11T12:00:00Z,sensor-02,20.8,9.2,10.9
+2026-08-11T13:00:00Z,sensor-02,21.9,8.7,11.5
+
+// For continuous simulated data, see claryo-backend/tests/sensor_sim.py.

@@ -7,7 +7,7 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from azure.kusto.data import KustoConnectionStringBuilder, KustoClient
-from dotenv import load_dotenv
+from azure.identity import DefaultAzureCredential
 from config import Config
 
 
@@ -15,13 +15,10 @@ from config import Config
 
 app = FastAPI(title="Claryo API", version="0.1.0")
 
-# Configure CORS so that requests from the React dev server (localhost:3000) are allowed
+# CORS origins are configurable so the app works in any deployment (see ALLOWED_ORIGINS).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://polite-field-0d95aea03.4.azurestaticapps.net",
-        "http://localhost:3000"  # if you test locally
-    ],
+    allow_origins=Config.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,18 +27,34 @@ app.add_middleware(
 # ADX connection settings loaded from environment variables
 KUSTO_CLUSTER = Config.KUSTO_CLUSTER
 KUSTO_DB = Config.KUSTO_DB
-APP_ID = Config.APP_ID
-APP_SECRET = Config.APP_SECRET
-TENANT_ID = Config.TENANT_ID
+TABLE = Config.KUSTO_TABLE
 
-# Create the Kusto connection string builder and ADX client
-kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
-    KUSTO_CLUSTER,
-    APP_ID,
-    APP_SECRET,
-    TENANT_ID
-)
-client = KustoClient(kcsb)
+# The ADX client is created lazily so the app can be imported without credentials
+# (e.g. in CI or unit tests) and so a misconfigured cluster fails on request, not import.
+_client = None
+
+
+def get_client() -> KustoClient:
+    global _client
+    if _client is not None:
+        return _client
+    if not KUSTO_CLUSTER:
+        raise RuntimeError("KUSTO_CLUSTER is not set — see .env.example.")
+    if Config.AUTH_MODE == "app_key":
+        if not all([Config.APP_ID, Config.APP_SECRET, Config.TENANT_ID]):
+            raise RuntimeError(
+                "AUTH_MODE=app_key requires APP_ID, APP_SECRET and TENANT_ID."
+            )
+        kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
+            KUSTO_CLUSTER, Config.APP_ID, Config.APP_SECRET, Config.TENANT_ID
+        )
+    else:
+        # DefaultAzureCredential: managed identity in Azure, `az login` locally.
+        kcsb = KustoConnectionStringBuilder.with_azure_token_credential(
+            KUSTO_CLUSTER, DefaultAzureCredential()
+        )
+    _client = KustoClient(kcsb)
+    return _client
 
 # Helper function to convert ADX query results (table rows) into a list of dictionaries.
 def kusto_rows_to_dict(table) -> List[Dict]:
@@ -68,13 +81,13 @@ def get_date_range(dateRange: str) -> Tuple[datetime.datetime, datetime.datetime
 # Helper: Execute a query and return chart data.
 def get_chart_data(field: str, alias: str, start_date: datetime.datetime, end_date: datetime.datetime) -> List[Dict]:
     query = f"""
-        IoTSensorData
+        {TABLE}
         | where timestamp between (datetime({start_date.isoformat()}) .. datetime({end_date.isoformat()}))
         | summarize {alias} = avg({field}) by bin(timestamp, 1h)
         | order by timestamp asc
     """
     print(f"{field.capitalize()} Summary Query:", query)
-    response = client.execute(KUSTO_DB, query)
+    response = get_client().execute(KUSTO_DB, query)
     chart_data = []
     primary_results = response.primary_results[0]
     columns = [col.column_name for col in primary_results.columns]
@@ -86,12 +99,12 @@ def get_chart_data(field: str, alias: str, start_date: datetime.datetime, end_da
 # Helper: Execute a query to compute summary metrics.
 def get_metrics(field: str, min_alias: str, max_alias: str, start_date: datetime.datetime, end_date: datetime.datetime) -> List[Dict]:
     query = f"""
-        IoTSensorData
+        {TABLE}
         | where timestamp between (datetime({start_date.isoformat()}) .. datetime({end_date.isoformat()}))
         | summarize current = arg_max(timestamp, {field}), {min_alias} = min({field}), {max_alias} = max({field})
     """
     print(f"{field.capitalize()} Metric Query:", query)
-    response = client.execute(KUSTO_DB, query)
+    response = get_client().execute(KUSTO_DB, query)
     raw_metrics = kusto_rows_to_dict(response.primary_results[0])
     if raw_metrics:
         metric = raw_metrics[0]
@@ -135,12 +148,12 @@ def read_root():
 @app.get("/sensors/latest")
 def get_latest_sensors():
     try:
-        query = """
-        IoTSensorData
+        query = f"""
+        {TABLE}
         | order by timestamp desc
         | limit 10
         """
-        response = client.execute(KUSTO_DB, query)
+        response = get_client().execute(KUSTO_DB, query)
         rows = kusto_rows_to_dict(response.primary_results[0])
         return rows
     except Exception as e:
@@ -151,13 +164,13 @@ def get_latest_sensors():
 @app.get("/sensors/average_pressure_latest")
 def get_average_pressure_latest():
     try:
-        query = """
-        IoTSensorData
+        query = f"""
+        {TABLE}
         | order by timestamp desc
         | limit 10
         | summarize avgPressure = avg(pressure)
         """
-        response = client.execute(KUSTO_DB, query)
+        response = get_client().execute(KUSTO_DB, query)
         result = kusto_rows_to_dict(response.primary_results[0])
         return result
     except Exception as e:
@@ -169,12 +182,12 @@ THRESHOLD_PRESSURE = 8.0
 @app.get("/sensors/check_alerts")
 def check_alerts(threshold: float = 12.0):
     try:
-        query = """
-        IoTSensorData
+        query = f"""
+        {TABLE}
         | order by timestamp desc
         | limit 10
         """
-        response = client.execute(KUSTO_DB, query)
+        response = get_client().execute(KUSTO_DB, query)
         rows = kusto_rows_to_dict(response.primary_results[0])
         alerts_triggered = []
         for row in rows:
@@ -197,10 +210,10 @@ def check_alerts(threshold: float = 12.0):
 def export_data(hours: int = 1):
     try:
         query = f"""
-        IoTSensorData
+        {TABLE}
         | where timestamp > ago({hours}h)
         """
-        response = client.execute(KUSTO_DB, query)
+        response = get_client().execute(KUSTO_DB, query)
         rows = kusto_rows_to_dict(response.primary_results[0])
         if not rows:
             return {"message": "No data found for the specified period."}

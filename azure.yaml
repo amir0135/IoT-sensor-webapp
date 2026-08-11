@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: claryo-iot-dashboard
+metadata:
+  template: claryo-iot-dashboard@1.0.0
+services:
+  api:
+    project: claryo-backend
+    language: py
+    host: appservice
+  web:
+    project: claryo-frontend
+    language: js
+    host: staticwebapp
+    dist: build
