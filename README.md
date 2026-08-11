@@ -1,138 +1,170 @@
 # Claryo Dashboard
 
-Claryo Dashboard is a real-time monitoring application for sensor data (e.g., pressure, flow rate, and temperature) sourced from an Azure Data Explorer (ADX) database. The platform consists of a FastAPI backend that queries sensor data from ADX and a React frontend that displays various dashboards, alerts, and summaries with dynamic charts and metrics.
+Real-time monitoring for industrial sensor data — **pressure, flow rate, and temperature** — sourced from Azure Data Explorer (ADX).
 
-## Table of Contents
+A FastAPI backend queries ADX over Kusto and exposes a small REST surface; a React frontend renders live dashboards, alerts, and CSV exports on top of it. Both halves deploy to Azure (Container Apps / App Service for the API, Static Web Apps for the UI) via the workflows in [`.github/workflows/`](.github/workflows/).
+
+---
+
+## Contents
 
 - [Features](#features)
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
-- [Setup and Installation](#setup-and-installation)
-  - [Backend Setup](#backend-setup)
-  - [Frontend Setup](#frontend-setup)
-- [Environment Configuration](#environment-configuration)
-- [Running the Application](#running-the-application)
-- [Project Structure](#project-structure)
-- [API Endpoints](#api-endpoints)
-- [Frontend Pages](#frontend-pages)
-- [Contributing](#contributing)
+- [Configuration](#configuration)
+- [Running locally](#running-locally)
+- [API reference](#api-reference)
+- [Project structure](#project-structure)
+- [Deployment](#deployment)
+- [Security](#security)
 - [License](#license)
-- [Contact](#contact)
 
 ## Features
 
-- **Real-Time Data:** Polls and displays recent sensor data from ADX.
-- **Dynamic Dashboards:** Separate pages for Temperature, Pressure, and Flow dashboards.
-- **Combined Summary:** Overview chart aggregating key sensor information.
-- **Alerts Panel:** Real-time monitoring of sensor values based on customizable thresholds.
-- **Responsive UI:** Built with React, React Router, and styled-components.
-- **Robust Backend:** FastAPI endpoints that query and summarize sensor data using ADX Kusto.
+- **Live sensor readings** polled from ADX and rendered as time-series charts
+- **Per-metric dashboards** for temperature, pressure, and flow, plus a combined summary view
+- **Threshold alerting** — `/sensors/check_alerts` flags readings outside configured bounds
+- **CSV export** of any filtered query via `/export`
+- **Summary endpoints** returning aggregates per metric for at-a-glance tiles
 
 ## Architecture
 
-- **Backend:**  
-  Built with [FastAPI](https://fastapi.tiangolo.com), the backend queries sensor data from an Azure Data Explorer (ADX) cluster using the `azure.kusto.data` package. Key endpoints include:
-  - `/sensors/latest`
-  - `/sensors/average_pressure_latest`
-  - `/sensors/temperature_summary`
-  - `/sensors/pressure_summary`
-  - `/sensors/flow_summary`
-  - `/sensors/check_alerts`
-  - `/export`
-- **Frontend:**  
-  Developed with [React](https://reactjs.org) and using [react-router-dom](https://reactrouter.com/en/main) for routing, the frontend features multiple dashboards (Temperature, Pressure, Flow, and a Combined Summary) and an Alerts Panel for real-time sensor alerts.
+```
+┌──────────────────┐        ┌────────────────────┐        ┌─────────────────┐
+│  React frontend  │──REST─▶│  FastAPI backend   │──KQL──▶│  Azure Data     │
+│  (Static Web App)│        │  (Container App)   │        │  Explorer (ADX) │
+└──────────────────┘        └────────────────────┘        └─────────────────┘
+        │                            │
+   Recharts dashboards      Entra service principal auth
+   Alerts · CSV export      (azure-kusto-data)
+```
+
+The backend authenticates to ADX with a Microsoft Entra application key (`KustoConnectionStringBuilder.with_aad_application_key_authentication`). CORS is restricted to the deployed Static Web App origin and `localhost:3000` for development.
 
 ## Prerequisites
 
-- **Backend:**
-  - Python 3.8+
-  - FastAPI
-  - Uvicorn
-  - Azure Kusto SDK (`azure-kusto-data`)
-  - pip (or a similar tool)
-- **Frontend:**
-  - Node.js 14+
-  - npm or yarn
+| Component | Requirement |
+|---|---|
+| Backend | Python 3.11+ |
+| Frontend | Node.js 18+ and npm (or yarn) |
+| Data | An ADX cluster and database containing the sensor tables |
+| Auth | An Entra service principal with **Database Viewer** on the ADX database |
+| Optional | Docker, for the containerised backend |
 
-## Setup and Installation
+## Configuration
 
-### Backend Setup
+Both halves read configuration from `.env` files that are **not** committed. Copy the provided examples and fill in your own values:
 
-1. **Clone the repository:**
+```bash
+cp claryo-backend/.env.example claryo-backend/.env
+cp claryo-frontend/.env.example claryo-frontend/.env
+```
 
-   ```bash
-   git clone https://github.com/yourusername/claryo-dashboard.git
-   cd claryo-dashboard/claryo-backend
-   ```
+**`claryo-backend/.env`**
 
-2. **Create and activate a virtual environment (optional but recommended):**
+| Variable | Description |
+|---|---|
+| `KUSTO_CLUSTER` | ADX cluster URI, e.g. `https://<cluster>.<region>.kusto.windows.net` |
+| `KUSTO_DB` | Database name (defaults to `claryoMVPDB`) |
+| `APP_ID` | Entra application (client) ID |
+| `APP_SECRET` | Entra client secret |
+| `TENANT_ID` | Entra tenant ID |
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+Create the service principal with:
 
-3. **Install the required packages:**
+```bash
+az ad sp create-for-rbac --name claryo-adx-reader
+```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+**`claryo-frontend/.env`**
 
-   *Note: Ensure that your `requirements.txt` file includes dependencies such as `fastapi`, `uvicorn`, `azure-kusto-data`, and others.*
+| Variable | Description |
+|---|---|
+| `REACT_APP_API_URL` | Base URL of the backend API |
 
-4. **Configure Environment Variables:**
+> ⚠️ `REACT_APP_*` values are inlined into the public JavaScript bundle at build time. Never put a secret in the frontend `.env`.
 
-   Create a `.env` file in the `claryo-backend` directory with the following variables:
+## Running locally
 
-   ```ini
-   KUSTO_CLUSTER=https://your-adx-cluster.region.kusto.windows.net
-   KUSTO_DB=yourDatabaseName
-   APP_ID=yourAADApplicationID
-   APP_SECRET=yourAADApplicationSecret
-   TENANT_ID=yourTenantID
-   ```
+**Backend**
 
-5. **Run the Backend Server:**
+```bash
+cd claryo-backend
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
 
-   ```bash
-   uvicorn main:app --reload
-   ```
+Interactive API docs are then served at <http://localhost:8000/docs>.
 
-### Frontend Setup
+**Frontend**
 
-1. **Navigate to the frontend directory:**
+```bash
+cd claryo-frontend
+npm install
+npm start
+```
 
-   ```bash
-   cd ../claryo-frontend
-   ```
+The UI runs at <http://localhost:3000> and expects the API at whatever `REACT_APP_API_URL` points to.
 
-2. **Install dependencies:**
+**With Docker**
 
-   *Using npm (with legacy peer-deps flag if necessary):*
+```bash
+cd claryo-backend
+docker compose up --build
+```
 
-   ```bash
-   npm install --legacy-peer-deps
-   ```
-   *Alternatively, you may use:*
-   ```bash
-   npm install --force
-   ```
+## API reference
 
-3. **Run the Frontend Server:**
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/` | Health check |
+| `GET` | `/sensors/latest` | Most recent readings across all sensors |
+| `GET` | `/sensors/average_pressure_latest` | Latest average pressure |
+| `GET` | `/sensors/check_alerts` | Readings breaching configured thresholds |
+| `GET` | `/sensors/temperature_summary` | Aggregated temperature statistics |
+| `GET` | `/sensors/pressure_summary` | Aggregated pressure statistics |
+| `GET` | `/sensors/flow_summary` | Aggregated flow-rate statistics |
+| `GET` | `/export` | Streaming CSV export of the current query |
 
-   ```bash
-   npm start
-   ```
+## Project structure
 
-## Environment Configuration
+```
+claryo-backend/
+  main.py              FastAPI app, ADX client, all endpoints
+  config.py            Environment-backed configuration
+  requirements.txt
+  Dockerfile
+  docker-compose.yml
+  tests/
+claryo-frontend/
+  src/
+    pages/             Dashboard, Temperature, Pressure, Flow, CombinedSummary
+    components/        Layout, Sidebar, TopBar, ChartCard, MetricTable,
+                       AlertsPanel, FilterBar
+    App.js
+  public/
+    staticwebapp.config.json
+.github/workflows/     App Service and Static Web Apps deployment pipelines
+```
 
-- Ensure that your backend `.env` file is correctly configured with ADX connection information.
-- In the frontend, verify the `package.json` dependencies for `react-router-dom`, `styled-components`, and other libraries.
+## Deployment
 
-## Running the Application
+Two GitHub Actions workflows handle deployment:
 
-- **Backend:** Running on (e.g.) `http://localhost:8000`
-- **Frontend:** Running on (e.g.) `http://localhost:3000`
-- Use the provided navigation buttons and URL routes (e.g., `/dashboard/temperature`, `/dashboard/pressure`, `/dashboard/flow`, `/dashboard/combined`) to navigate through dashboards.
+- `master_claryo-webapp.yml` — builds and deploys the FastAPI backend
+- `azure-static-web-apps-*.yml` — builds and deploys the React frontend
 
-## Project Structure 
+Backend secrets should be supplied as **App Service / Container App application settings** (or, preferably, Key Vault references) rather than baked into the image.
+
+## Security
+
+- Secrets are read from the environment only; no credentials belong in the repository
+- Prefer **managed identity** over a client secret for ADX access where the hosting platform supports it — it removes secret rotation entirely
+- The ADX service principal should hold the least privilege that works, typically `Database Viewer`
+- CORS origins are allow-listed explicitly in `main.py`; add new origins there rather than widening to `*`
+
+## License
+
+MIT — see [LICENSE](LICENSE).
