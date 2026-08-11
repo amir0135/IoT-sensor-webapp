@@ -57,9 +57,37 @@ azd up
 | Linux App Service (Python) | The FastAPI backend, with a **system-assigned managed identity** granted `Database Viewer` on the ADX database |
 | Static Web App | The React frontend |
 
-No service principal or secret is created — the App Service's managed identity is what reads ADX. CORS and the frontend's API URL are wired from deployment outputs.
+No service principal or secret is created — the App Service's managed identity is what reads ADX. CORS and the frontend's API URL are wired from deployment outputs. The frontend's `REACT_APP_API_URL` is written automatically after provisioning by the `postprovision` hook in [`azure.yaml`](azure.yaml), so the built UI always points at your freshly deployed API.
 
-Infrastructure lives in [`infra/`](infra/) (Bicep) and is described by [`azure.yaml`](azure.yaml). The Static Web App region defaults to `westeurope`; override with `azd env set AZURE_STATIC_WEB_APP_LOCATION <region>` before `azd up`.
+### Choosing regions
+
+`azd up` prompts for the primary **location** (used for the App Service and, by default, ADX). Because Azure Data Explorer's Dev SKU and the Static Web App service aren't offered in every region, each can be pointed elsewhere:
+
+| `azd env set …` | Default | Purpose |
+|---|---|---|
+| `AZURE_LOCATION <region>` | prompted at `azd up` | App Service + ADX (unless overridden below) |
+| `AZURE_ADX_LOCATION <region>` | primary location | Put the ADX cluster in a different region |
+| `AZURE_ADX_SKU "<sku>"` | `Dev(No SLA)_Standard_E2a_v4` | Pick a SKU your region offers — a `Dev*` SKU uses the Basic tier, anything else Standard |
+| `AZURE_STATIC_WEB_APP_LOCATION <region>` | `westeurope` | One of: `westus2`, `centralus`, `eastus2`, `westeurope`, `eastasia` |
+
+Set any of these before `azd up` (or `azd provision`):
+
+```bash
+azd env set AZURE_LOCATION eastus2
+azd env set AZURE_ADX_SKU "Standard_D11_v2"
+azd env set AZURE_STATIC_WEB_APP_LOCATION eastus2
+```
+
+**Check availability first:**
+
+```bash
+# ADX SKUs and the regions each is offered in:
+az kusto cluster list-skus -o table
+# Valid Azure region names (for AZURE_LOCATION / AZURE_ADX_LOCATION):
+az account list-locations --query "[].name" -o tsv
+```
+
+Infrastructure lives in [`infra/`](infra/) (Bicep) and is described by [`azure.yaml`](azure.yaml).
 
 > **Seed data:** a fresh cluster is empty. Run the commands in [`scripts/setup-adx.kql`](scripts/setup-adx.kql) in the ADX query pane to add a few sample rows, or point `claryo-backend/tests/sensor_sim.py` at your cluster for continuous data.
 

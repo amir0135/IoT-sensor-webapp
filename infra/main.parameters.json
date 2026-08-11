@@ -8,6 +8,12 @@
     "location": {
       "value": "${AZURE_LOCATION}"
     },
+    "adxLocation": {
+      "value": "${AZURE_ADX_LOCATION=}"
+    },
+    "adxSkuName": {
+      "value": "${AZURE_ADX_SKU=Dev(No SLA)_Standard_E2a_v4}"
+    },
     "staticWebAppLocation": {
       "value": "${AZURE_STATIC_WEB_APP_LOCATION=westeurope}"
     }

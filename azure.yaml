@@ -12,3 +12,21 @@ services:
     language: js
     host: staticwebapp
     dist: build
+hooks:
+  postprovision:
+    posix:
+      shell: sh
+      continueOnError: false
+      interactive: false
+      run: |
+        api="$(azd env get-value API_BASE_URL)"
+        echo "REACT_APP_API_URL=$api" > claryo-frontend/.env.production.local
+        echo "Wrote claryo-frontend/.env.production.local -> $api"
+    windows:
+      shell: pwsh
+      continueOnError: false
+      interactive: false
+      run: |
+        $api = azd env get-value API_BASE_URL
+        "REACT_APP_API_URL=$api" | Out-File -Encoding ascii -NoNewline claryo-frontend/.env.production.local
+        Write-Host "Wrote claryo-frontend/.env.production.local -> $api"

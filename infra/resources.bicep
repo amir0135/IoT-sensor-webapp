@@ -1,6 +1,12 @@
 @description('Primary location for all resources.')
 param location string
 
+@description('Region for the Azure Data Explorer cluster.')
+param adxLocation string
+
+@description('Azure Data Explorer SKU name. Dev SKUs use the Basic tier; others use Standard.')
+param adxSkuName string = 'Dev(No SLA)_Standard_E2a_v4'
+
 @description('Region for the Static Web App.')
 param staticWebAppLocation string
 
@@ -15,6 +21,11 @@ param databaseName string = 'IoTDatabase'
 
 @description('Azure Data Explorer table name the API queries.')
 param tableName string = 'IoTSensorData'
+
+// Dev SKUs run on the Basic tier with a single instance; everything else is Standard (min 2).
+var adxIsDev = startsWith(adxSkuName, 'Dev')
+var adxTier = adxIsDev ? 'Basic' : 'Standard'
+var adxCapacity = adxIsDev ? 1 : 2
 
 // ---------------------------------------------------------------------------
 // Frontend — Azure Static Web App
@@ -40,12 +51,12 @@ resource web 'Microsoft.Web/staticSites@2023-12-01' = {
 // ---------------------------------------------------------------------------
 resource adx 'Microsoft.Kusto/clusters@2023-08-15' = {
   name: 'adx${resourceToken}'
-  location: location
+  location: adxLocation
   tags: tags
   sku: {
-    name: 'Dev(No SLA)_Standard_E2a_v4'
-    tier: 'Basic'
-    capacity: 1
+    name: adxSkuName
+    tier: adxTier
+    capacity: adxCapacity
   }
   properties: {
     enableStreamingIngest: true
@@ -55,7 +66,7 @@ resource adx 'Microsoft.Kusto/clusters@2023-08-15' = {
 resource adxDb 'Microsoft.Kusto/clusters/databases@2023-08-15' = {
   parent: adx
   name: databaseName
-  location: location
+  location: adxLocation
   kind: 'ReadWrite'
   properties: {}
 }

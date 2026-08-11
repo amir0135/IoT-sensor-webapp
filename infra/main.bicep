@@ -6,8 +6,14 @@ targetScope = 'subscription'
 param environmentName string
 
 @minLength(1)
-@description('Primary location for all resources (e.g. westeurope, eastus2).')
+@description('Primary location for all resources (e.g. westeurope, eastus2). azd prompts for this.')
 param location string
+
+@description('Region for the Azure Data Explorer cluster. Leave empty to use the primary location; override if the ADX SKU is not available there.')
+param adxLocation string = ''
+
+@description('Azure Data Explorer SKU. Dev SKUs use the Basic tier; any other SKU uses Standard. Pick one available in your chosen region.')
+param adxSkuName string = 'Dev(No SLA)_Standard_E2a_v4'
 
 @description('Region for the Static Web App (must be a Static Web Apps region).')
 @allowed([
@@ -21,6 +27,7 @@ param staticWebAppLocation string = 'westeurope'
 
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
+var effectiveAdxLocation = empty(adxLocation) ? location : adxLocation
 
 resource rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: 'rg-${environmentName}'
@@ -33,6 +40,8 @@ module resources 'resources.bicep' = {
   scope: rg
   params: {
     location: location
+    adxLocation: effectiveAdxLocation
+    adxSkuName: adxSkuName
     staticWebAppLocation: staticWebAppLocation
     tags: tags
     resourceToken: resourceToken
